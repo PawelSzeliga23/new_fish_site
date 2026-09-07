@@ -1,26 +1,79 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #0f1419;
+  --card: #ffffff;
+  --card-foreground: #0f1419;
+  --border: #eff3f4;
+  --primary: #1d9bf0;
+  --primary-foreground: #ffffff;
+  --accent: #1d9bf0;
+  --accent-foreground: #ffffff;
+  --muted: #f7f9f9;
+  --muted-foreground: #536471;
+  --chart-series-1: #2a78d6;
+  --chart-series-2: #eb6834;
+}
+
+.dark {
+  --background: #000000;
+  --foreground: #e7e9ea;
+  --card: #16181c;
+  --card-foreground: #e7e9ea;
+  --border: #2f3336;
+  --primary: #1d9bf0;
+  --primary-foreground: #ffffff;
+  --accent: #1d9bf0;
+  --accent-foreground: #ffffff;
+  --muted: #16181c;
+  --muted-foreground: #71767b;
+  --chart-series-1: #3987e5;
+  --chart-series-2: #d95926;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Tailwind v4 nie ustawia już domyślnie pointera na przyciskach - przywracamy to
+   dla wszystkiego, co jest klikalne, żeby zachowanie było spójne w całej aplikacji */
+button:not(:disabled),
+[role="button"],
+a[href],
+label[for],
+select,
+summary {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* Leaflet ma wbudowany na sztywno biały styl popupów - nadpisujemy tokenami motywu */
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: var(--card) !important;
+  color: var(--card-foreground) !important;
 }

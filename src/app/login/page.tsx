@@ -1,4 +1,5 @@
 import { login, signup } from "./actions";
+import { card, heading, input, btnPrimary, btnSecondary } from "@/lib/ui";
 
 export default async function LoginPage({
   searchParams,
@@ -8,8 +9,8 @@ export default async function LoginPage({
   const params = await searchParams;
 
   return (
-    <div className="mx-auto mt-20 max-w-sm">
-      <h1 className="mb-6 text-2xl font-bold">Zaloguj się</h1>
+    <div className={`${card} mx-auto mt-20 max-w-sm`}>
+      <h1 className={`${heading} mb-6`}>Zaloguj się</h1>
 
       {params.error && (
         <p className="mb-4 rounded bg-red-100 p-2 text-sm text-red-700">
@@ -29,7 +30,7 @@ export default async function LoginPage({
           name="email"
           type="email"
           required
-          className="rounded border px-3 py-2"
+          className={input}
         />
 
         <label htmlFor="password">Hasło</label>
@@ -39,19 +40,19 @@ export default async function LoginPage({
           type="password"
           required
           minLength={6}
-          className="rounded border px-3 py-2"
+          className={input}
         />
 
         <div className="mt-4 flex gap-2">
           <button
             formAction={login}
-            className="flex-1 rounded bg-blue-600 py-2 text-white"
+            className={`${btnPrimary} flex-1`}
           >
             Zaloguj
           </button>
           <button
             formAction={signup}
-            className="flex-1 rounded border border-blue-600 py-2 text-blue-600"
+            className={`${btnSecondary} flex-1`}
           >
             Zarejestruj
           </button>

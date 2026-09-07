@@ -17,9 +17,15 @@ async function requireUser() {
 export async function createPost(formData: FormData) {
   const { supabase, user } = await requireUser();
 
-  const content = (formData.get("content") as string) || null;
+  const content = ((formData.get("content") as string) ?? "").trim() || null;
   const photo = formData.get("photo") as File | null;
   const locationId = (formData.get("location_id") as string) || null;
+  const groupId = (formData.get("group_id") as string) || null;
+
+  // pusty post (bez treści i bez zdjęcia) nie ma sensu - nie zapisujemy
+  if (!content && (!photo || photo.size === 0)) {
+    return;
+  }
 
   let photos: string[] | null = null;
 
@@ -39,15 +45,60 @@ export async function createPost(formData: FormData) {
     photos = [publicUrl];
   }
 
-  const { error } = await supabase
-    .from("posts")
-    .insert({ user_id: user.id, content, photos, location_id: locationId });
+  const { error } = await supabase.from("posts").insert({
+    user_id: user.id,
+    content,
+    photos,
+    location_id: locationId,
+    group_id: groupId,
+  });
 
   if (error) {
     throw new Error(error.message);
   }
 
-  revalidatePath("/feed");
+  revalidatePath("/");
+  revalidatePath("/u/[username]", "page");
+  revalidatePath("/groups/[id]", "page");
+}
+
+export async function deletePost(formData: FormData) {
+  const { supabase, user } = await requireUser();
+  const postId = formData.get("post_id") as string;
+
+  // RLS (posts_delete_own) i tak przepuści tylko własne posty
+  const { error } = await supabase
+    .from("posts")
+    .delete()
+    .eq("id", postId)
+    .eq("user_id", user.id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/u/[username]", "page");
+  revalidatePath("/groups/[id]", "page");
+}
+
+export async function deleteComment(formData: FormData) {
+  const { supabase, user } = await requireUser();
+  const commentId = formData.get("comment_id") as string;
+
+  const { error } = await supabase
+    .from("comments")
+    .delete()
+    .eq("id", commentId)
+    .eq("user_id", user.id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/u/[username]", "page");
+  revalidatePath("/groups/[id]", "page");
 }
 
 export async function addComment(formData: FormData) {
@@ -68,7 +119,9 @@ export async function addComment(formData: FormData) {
     throw new Error(error.message);
   }
 
-  revalidatePath("/feed");
+  revalidatePath("/");
+  revalidatePath("/u/[username]", "page");
+  revalidatePath("/groups/[id]", "page");
 }
 
 export async function likePost(formData: FormData) {
@@ -83,7 +136,9 @@ export async function likePost(formData: FormData) {
     throw new Error(error.message);
   }
 
-  revalidatePath("/feed");
+  revalidatePath("/");
+  revalidatePath("/u/[username]", "page");
+  revalidatePath("/groups/[id]", "page");
 }
 
 export async function unlikePost(formData: FormData) {
@@ -100,5 +155,7 @@ export async function unlikePost(formData: FormData) {
     throw new Error(error.message);
   }
 
-  revalidatePath("/feed");
+  revalidatePath("/");
+  revalidatePath("/u/[username]", "page");
+  revalidatePath("/groups/[id]", "page");
 }

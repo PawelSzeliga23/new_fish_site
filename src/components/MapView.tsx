@@ -13,6 +13,8 @@ import {
 } from "react-leaflet";
 import { addLocation, logCatch } from "@/app/map/actions";
 import type { WeatherSnapshot } from "@/lib/weather";
+import { input, btnPrimary, btnSecondary, btnLink } from "@/lib/ui";
+import FileInput from "./FileInput";
 
 // domyślne ikony Leaflet nie ładują się poprawnie z bundlerem (Turbopack/Webpack) -
 // trzeba je ręcznie wskazać na CDN
@@ -83,7 +85,7 @@ function LocateButton({
       type="button"
       onClick={handleClick}
       disabled={locating}
-      className="absolute top-4 right-4 z-[1000] rounded bg-white px-3 py-2 text-sm shadow-lg disabled:opacity-50"
+      className="absolute top-4 right-4 z-[1000] rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold text-card-foreground shadow-lg disabled:opacity-50"
     >
       {locating ? "Namierzam..." : "📍 Moja lokalizacja"}
     </button>
@@ -106,7 +108,7 @@ function CatchForm({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mt-1 text-xs text-blue-600 underline"
+        className={`${btnLink} mt-1`}
       >
         Zarejestruj połów
       </button>
@@ -128,25 +130,26 @@ function CatchForm({
         name="species"
         placeholder="Gatunek"
         required
-        className="rounded border p-1 text-sm"
+        className={input}
       />
       <input
         name="weight_kg"
         type="number"
         step="0.01"
         placeholder="Waga (kg)"
-        className="rounded border p-1 text-sm"
+        className={input}
       />
       <input
         name="length_cm"
         type="number"
         step="0.1"
         placeholder="Długość (cm)"
-        className="rounded border p-1 text-sm"
+        className={input}
       />
+      <FileInput name="photo" label="Zdjęcie" />
       <button
         type="submit"
-        className="rounded bg-blue-600 py-1 text-sm text-white"
+        className={btnPrimary}
       >
         Zapisz połów
       </button>
@@ -164,7 +167,7 @@ export default function MapView({
   );
 
   return (
-    <div style={{ position: "relative", height: "100vh", width: "100%" }}>
+    <div className="relative h-full w-full">
       <MapContainer
         center={[52.0, 19.0]}
         zoom={6}
@@ -191,13 +194,19 @@ export default function MapView({
                   />
                 )}
                 {loc.weather && (
-                  <span className="text-xs text-gray-600">
+                  <span className="text-xs text-muted-foreground">
                     🌡 {loc.weather.temperature}°C · 💨{" "}
                     {loc.weather.windSpeedKmh} km/h · 🔽{" "}
                     {loc.weather.pressureMsl} hPa
                   </span>
                 )}
                 <CatchForm locationId={loc.id} lat={loc.lat} lng={loc.lng} />
+                <a
+                  href={`/locations/${loc.id}`}
+                  className={btnLink}
+                >
+                  Szczegóły i statystyki
+                </a>
               </div>
             </Popup>
           </Marker>
@@ -209,7 +218,7 @@ export default function MapView({
       </MapContainer>
 
       {pending && (
-        <div className="absolute bottom-4 left-1/2 z-[1000] w-72 -translate-x-1/2 rounded bg-white p-3 shadow-lg">
+        <div className="absolute bottom-4 left-1/2 z-[1000] w-72 -translate-x-1/2 rounded-2xl border border-border bg-card p-4 text-card-foreground shadow-lg">
           <form
             action={async (formData) => {
               formData.set("lat", String(pending.lat));
@@ -223,29 +232,28 @@ export default function MapView({
             <textarea
               name="note"
               placeholder="Notatka (opcjonalnie)"
-              className="rounded border p-1 text-sm"
+              className={input}
             />
-            <input
-              type="file"
-              name="photo"
-              accept="image/*"
-              className="text-sm"
-            />
-            <select name="visibility" className="rounded border p-1 text-sm">
+            <FileInput name="photo" label="Zdjęcie" />
+            <select
+              name="visibility"
+              className={input}
+            >
               <option value="private">Tylko ja</option>
+              <option value="friends">Znajomi</option>
               <option value="public">Publiczne</option>
             </select>
             <div className="flex gap-2">
               <button
                 type="submit"
-                className="flex-1 rounded bg-blue-600 py-1 text-sm text-white"
+                className={`${btnPrimary} flex-1`}
               >
                 Zapisz
               </button>
               <button
                 type="button"
                 onClick={() => setPending(null)}
-                className="rounded border px-2 py-1 text-sm"
+                className={btnSecondary}
               >
                 Anuluj
               </button>

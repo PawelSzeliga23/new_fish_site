@@ -73,6 +73,25 @@ export async function logCatch(formData: FormData) {
   const lengthCm = formData.get("length_cm")
     ? Number(formData.get("length_cm"))
     : null;
+  const photo = formData.get("photo") as File | null;
+
+  let photos: string[] | null = null;
+
+  if (photo && photo.size > 0) {
+    const path = `${user.id}/${Date.now()}-${photo.name}`;
+    const { error: uploadError } = await supabase.storage
+      .from("catch-photos")
+      .upload(path, photo, { contentType: photo.type });
+
+    if (uploadError) {
+      throw new Error(uploadError.message);
+    }
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("catch-photos").getPublicUrl(path);
+    photos = [publicUrl];
+  }
 
   const conditionsSnapshot = await getCurrentWeather(lat, lng);
 
@@ -83,6 +102,7 @@ export async function logCatch(formData: FormData) {
     weight_kg: weightKg,
     length_cm: lengthCm,
     conditions_snapshot: conditionsSnapshot,
+    photos,
   });
 
   if (error) {
@@ -90,4 +110,29 @@ export async function logCatch(formData: FormData) {
   }
 
   revalidatePath("/map");
+  revalidatePath("/locations/[id]", "page");
+}
+
+export async function updateLocationAccessInfo(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    throw new Error("Musisz być zalogowany");
+  }
+
+  const locationId = formData.get("location_id") as string;
+  const accessInfo = (formData.get("access_info") as string) || null;
+
+  const { error } = await supabase
+    .from("locations")
+    .update({ access_info: accessInfo })
+    .eq("id", locationId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/locations/[id]", "page");
 }
