@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentWeather } from "@/lib/weather";
 import MapLoader from "@/components/MapLoader";
 import type { LocationPoint } from "@/components/MapView";
 
@@ -19,5 +20,12 @@ export default async function MapPage() {
     throw new Error(error.message);
   }
 
-  return <MapLoader locations={(data as LocationPoint[]) ?? []} />;
+  const locations = await Promise.all(
+    ((data as Omit<LocationPoint, "weather">[]) ?? []).map(async (loc) => ({
+      ...loc,
+      weather: await getCurrentWeather(loc.lat, loc.lng),
+    })),
+  );
+
+  return <MapLoader locations={locations} />;
 }

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentWeather } from "@/lib/weather";
 
 export async function addLocation(formData: FormData) {
   const supabase = await createClient();
@@ -43,6 +44,45 @@ export async function addLocation(formData: FormData) {
     note,
     visibility,
     photos,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/map");
+}
+
+export async function logCatch(formData: FormData) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    throw new Error("Musisz być zalogowany");
+  }
+
+  const locationId = formData.get("location_id") as string;
+  const lat = Number(formData.get("lat"));
+  const lng = Number(formData.get("lng"));
+  const species = formData.get("species") as string;
+  const weightKg = formData.get("weight_kg")
+    ? Number(formData.get("weight_kg"))
+    : null;
+  const lengthCm = formData.get("length_cm")
+    ? Number(formData.get("length_cm"))
+    : null;
+
+  const conditionsSnapshot = await getCurrentWeather(lat, lng);
+
+  const { error } = await supabase.from("catch_reports").insert({
+    user_id: user.id,
+    location_id: locationId,
+    species,
+    weight_kg: weightKg,
+    length_cm: lengthCm,
+    conditions_snapshot: conditionsSnapshot,
   });
 
   if (error) {

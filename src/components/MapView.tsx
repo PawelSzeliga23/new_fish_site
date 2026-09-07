@@ -11,7 +11,8 @@ import {
   useMap,
   useMapEvents,
 } from "react-leaflet";
-import { addLocation } from "@/app/map/actions";
+import { addLocation, logCatch } from "@/app/map/actions";
+import type { WeatherSnapshot } from "@/lib/weather";
 
 // domyślne ikony Leaflet nie ładują się poprawnie z bundlerem (Turbopack/Webpack) -
 // trzeba je ręcznie wskazać na CDN
@@ -33,6 +34,7 @@ export type LocationPoint = {
   lat: number;
   lng: number;
   photos: string[] | null;
+  weather: WeatherSnapshot | null;
 };
 
 function ClickHandler({
@@ -88,6 +90,70 @@ function LocateButton({
   );
 }
 
+function CatchForm({
+  locationId,
+  lat,
+  lng,
+}: {
+  locationId: string;
+  lat: number;
+  lng: number;
+}) {
+  const [open, setOpen] = useState(false);
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mt-1 text-xs text-blue-600 underline"
+      >
+        Zarejestruj połów
+      </button>
+    );
+  }
+
+  return (
+    <form
+      action={async (formData) => {
+        await logCatch(formData);
+        setOpen(false);
+      }}
+      className="mt-1 flex flex-col gap-1"
+    >
+      <input type="hidden" name="location_id" value={locationId} />
+      <input type="hidden" name="lat" value={lat} />
+      <input type="hidden" name="lng" value={lng} />
+      <input
+        name="species"
+        placeholder="Gatunek"
+        required
+        className="rounded border p-1 text-sm"
+      />
+      <input
+        name="weight_kg"
+        type="number"
+        step="0.01"
+        placeholder="Waga (kg)"
+        className="rounded border p-1 text-sm"
+      />
+      <input
+        name="length_cm"
+        type="number"
+        step="0.1"
+        placeholder="Długość (cm)"
+        className="rounded border p-1 text-sm"
+      />
+      <button
+        type="submit"
+        className="rounded bg-blue-600 py-1 text-sm text-white"
+      >
+        Zapisz połów
+      </button>
+    </form>
+  );
+}
+
 export default function MapView({
   locations,
 }: {
@@ -124,6 +190,14 @@ export default function MapView({
                     className="w-full rounded"
                   />
                 )}
+                {loc.weather && (
+                  <span className="text-xs text-gray-600">
+                    🌡 {loc.weather.temperature}°C · 💨{" "}
+                    {loc.weather.windSpeedKmh} km/h · 🔽{" "}
+                    {loc.weather.pressureMsl} hPa
+                  </span>
+                )}
+                <CatchForm locationId={loc.id} lat={loc.lat} lng={loc.lng} />
               </div>
             </Popup>
           </Marker>
