@@ -24,13 +24,21 @@ export async function signup(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
-  const { error } = await supabase.auth.signUp({ email, password });
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/confirm`,
+    },
+  });
 
   if (error) {
     redirect(`/login?error=${encodeURIComponent(error.message)}`);
   }
 
-  redirect("/login?message=Sprawdź email, żeby potwierdzić konto");
+  redirect(
+    `/login?message=${encodeURIComponent("Sprawdź email, żeby potwierdzić konto")}`,
+  );
 }
 
 export async function logout() {
