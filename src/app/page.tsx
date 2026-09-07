@@ -15,12 +15,26 @@ export default async function Home() {
   return (
     <div className="mx-auto mt-20 max-w-sm text-center">
       <h1 className="mb-4 text-2xl font-bold">Zalogowano jako {user.email}</h1>
-      <a
-        href="/map"
-        className="mb-4 inline-block rounded bg-blue-600 px-4 py-2 text-white"
-      >
-        Otwórz mapę
-      </a>
+      <div className="mb-4 flex justify-center gap-2">
+        <a
+          href="/map"
+          className="inline-block rounded bg-blue-600 px-4 py-2 text-white"
+        >
+          Otwórz mapę
+        </a>
+        <a
+          href="/feed"
+          className="inline-block rounded bg-blue-600 px-4 py-2 text-white"
+        >
+          Otwórz feed
+        </a>
+        <a
+          href="/profile"
+          className="inline-block rounded bg-blue-600 px-4 py-2 text-white"
+        >
+          Profil
+        </a>
+      </div>
       <form>
         <button
           formAction={logout}
