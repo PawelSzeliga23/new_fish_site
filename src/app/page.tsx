@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWeather } from "@/lib/weather";
 import PostComposer from "@/components/PostComposer";
-import PostCard, { type PostCardData, type PostComment } from "@/components/PostCard";
+import PostCard, { type PostCardData } from "@/components/PostCard";
+import { fetchCommentsByPost } from "@/lib/comments";
 import { cardCompact, heading, subheading, meta, btnLink } from "@/lib/ui";
 
 type FeedPost = {
@@ -41,8 +42,6 @@ type Friend = {
   avatar_url: string | null;
 };
 
-type Comment = PostComment;
-
 export default async function Home() {
   const supabase = await createClient();
   const {
@@ -68,13 +67,10 @@ export default async function Home() {
     supabase.rpc("list_friends"),
   ]);
 
-  const postsWithComments = await Promise.all(
-    (posts as FeedPost[]).map(async (post) => {
-      const { data: comments } = await supabase.rpc("list_comments", {
-        target_post_id: post.id,
-      });
-      return { ...post, comments: (comments as Comment[]) ?? [] };
-    }),
+  const postList = (posts as FeedPost[]) ?? [];
+  const commentsByPost = await fetchCommentsByPost(
+    supabase,
+    postList.map((post) => post.id),
   );
 
   const locationsWithWeather = await Promise.all(
@@ -128,11 +124,11 @@ export default async function Home() {
         />
 
         <div className="flex flex-col gap-4">
-          {postsWithComments.map((post) => (
+          {postList.map((post) => (
             <PostCard
               key={post.id}
               post={post as PostCardData}
-              comments={post.comments as PostComment[]}
+              comments={commentsByPost.get(post.id) ?? []}
               currentUserId={user!.id}
             />
           ))}

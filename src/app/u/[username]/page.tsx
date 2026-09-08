@@ -2,7 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { sendFriendRequest } from "@/app/friends/actions";
 import PhotoLightbox from "@/components/PhotoLightbox";
-import PostCard, { type PostCardData, type PostComment } from "@/components/PostCard";
+import PostCard, { type PostCardData } from "@/components/PostCard";
+import { fetchCommentsByPost } from "@/lib/comments";
 import { cardCompact, subheading, meta, btnPrimary, btnSecondary } from "@/lib/ui";
 
 type Profile = {
@@ -17,8 +18,6 @@ type Profile = {
     | "pending_incoming"
     | "none";
 };
-
-type Comment = PostComment;
 
 type UserLocation = {
   id: string;
@@ -82,13 +81,9 @@ export default async function PublicProfilePage({
   const friendList = (friends as UserFriend[]) ?? [];
   const postList = (posts as PostCardData[]) ?? [];
 
-  const postsWithComments = await Promise.all(
-    postList.map(async (post) => {
-      const { data: comments } = await supabase.rpc("list_comments", {
-        target_post_id: post.id,
-      });
-      return { post, comments: (comments as Comment[]) ?? [] };
-    }),
+  const commentsByPost = await fetchCommentsByPost(
+    supabase,
+    postList.map((post) => post.id),
   );
 
   return (
@@ -146,14 +141,14 @@ export default async function PublicProfilePage({
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_280px]">
           <div className="flex flex-col gap-4">
             <h2 className={subheading}>Posty</h2>
-            {postsWithComments.length === 0 && (
+            {postList.length === 0 && (
               <p className={meta}>Brak widocznych postów.</p>
             )}
-            {postsWithComments.map(({ post, comments }) => (
+            {postList.map((post) => (
               <PostCard
                 key={post.id}
                 post={post}
-                comments={comments as PostComment[]}
+                comments={commentsByPost.get(post.id) ?? []}
                 currentUserId={user!.id}
               />
             ))}

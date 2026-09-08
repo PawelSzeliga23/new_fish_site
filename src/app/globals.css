@@ -16,6 +16,13 @@
   --muted-foreground: #536471;
   --chart-series-1: #2a78d6;
   --chart-series-2: #eb6834;
+  /* Skala oceny brań: rozbieżna, dwa bieguny + neutralna szarość w środku.
+     Czerwony↔zielony odpada - przy deuteranopii te dwa kolory zlewają się
+     (ΔE 4.2), więc dobrym biegunem jest niebieski, spójny z akcentem aplikacji.
+     Wartości przeszły walidator kontrastu i rozróżnialności CVD w obu motywach. */
+  --score-bad: #b91c1c;
+  --score-weak: #6b7280;
+  --score-good: #1d4ed8;
 }
 
 .dark {
@@ -32,6 +39,9 @@
   --muted-foreground: #71767b;
   --chart-series-1: #3987e5;
   --chart-series-2: #d95926;
+  --score-bad: #e5484d;
+  --score-weak: #8b8f96;
+  --score-good: #5b8def;
 }
 
 @theme inline {
@@ -71,9 +81,51 @@ button:disabled {
   cursor: not-allowed;
 }
 
+/* Obrysy wód na mapach. Reguła CSS, a nie opcja Leafletu, bo Leaflet wpisuje
+   kolory jako atrybuty SVG, w których var() się nie rozwija.
+
+   fill: none jest tu kluczowe. Rzeki i kanały trzymamy jako linie, a Leaflet
+   renderuje je z atrybutem fill="none" - ale reguła CSS ma wyższy priorytet niż
+   atrybut prezentacyjny, więc wspólne wypełnienie domykało meandry rzeki w
+   wielokąt i zalewało nim ląd. Wypełnienie dostają wyłącznie powierzchnie. */
+.water-body-outline {
+  stroke: var(--chart-series-1);
+  fill: none;
+}
+
+.water-body-area {
+  fill: var(--chart-series-1);
+}
+
 /* Leaflet ma wbudowany na sztywno biały styl popupów - nadpisujemy tokenami motywu */
 .leaflet-popup-content-wrapper,
 .leaflet-popup-tip {
   background: var(--card) !important;
   color: var(--card-foreground) !important;
+}
+
+/* Leaflet nakłada na treść dymka własny margines (13px/19px) i zaokrągla tylko
+   ramkę. Zerujemy go, bo zdjęcie miejscówki ma być banerem sięgającym krawędzi -
+   odstępy rozkłada już sama treść dymka. */
+.leaflet-popup-content-wrapper {
+  padding: 0 !important;
+  overflow: hidden;
+  border-radius: 1rem !important;
+}
+
+.leaflet-popup-content {
+  margin: 0 !important;
+  width: auto !important;
+}
+
+/* Dymki obrysów zbiorników są zwykłym tekstem, więc odstęp muszą dostać z
+   powrotem - inaczej po wyzerowaniu marginesu przykleiłyby się do ramki. */
+.water-body-popup {
+  padding: 0.5rem 0.75rem;
+}
+
+/* Płynne przewijanie do kotwic - używa go szybki skok do formularza połowu
+   na stronie miejscówki. */
+html {
+  scroll-behavior: smooth;
 }

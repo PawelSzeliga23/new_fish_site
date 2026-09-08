@@ -1,7 +1,13 @@
 "use client";
 
 import { ImagePlus, X } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { compressImage, formatBytes } from "@/lib/compress-image";
+
+type Status =
+  | { kind: "empty" }
+  | { kind: "working"; name: string }
+  | { kind: "ready"; name: string; before: number; after: number };
 
 export default function FileInput({
   name,
@@ -13,13 +19,73 @@ export default function FileInput({
   accept?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [fileName, setFileName] = useState<string | null>(null);
+  const [status, setStatus] = useState<Status>({ kind: "empty" });
+  const busyRef = useRef(false);
+  const resubmitRef = useRef(false);
+
+  // Kompresja jest asynchroniczna, a formularz da się wysłać w jej trakcie -
+  // poszedłby wtedy oryginał. Przechwytujemy taki submit przed handlerem
+  // Reacta i ponawiamy go, gdy plik jest już gotowy.
+  useEffect(() => {
+    const form = inputRef.current?.form;
+    if (!form) {
+      return;
+    }
+
+    const onSubmit = (e: Event) => {
+      if (!busyRef.current) {
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      resubmitRef.current = true;
+    };
+
+    form.addEventListener("submit", onSubmit, true);
+    return () => form.removeEventListener("submit", onSubmit, true);
+  }, []);
 
   const clear = () => {
     if (inputRef.current) {
       inputRef.current.value = "";
     }
-    setFileName(null);
+    setStatus({ kind: "empty" });
+  };
+
+  const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setStatus({ kind: "empty" });
+      return;
+    }
+
+    setStatus({ kind: "working", name: file.name });
+    busyRef.current = true;
+
+    try {
+      const compressed = await compressImage(file);
+
+      // Podmieniamy zawartość inputa, żeby serwerowe akcje dostały lżejszy plik
+      // bez żadnych zmian po swojej stronie.
+      if (compressed !== file && inputRef.current) {
+        const transfer = new DataTransfer();
+        transfer.items.add(compressed);
+        inputRef.current.files = transfer.files;
+      }
+
+      setStatus({
+        kind: "ready",
+        name: compressed.name,
+        before: file.size,
+        after: compressed.size,
+      });
+    } finally {
+      busyRef.current = false;
+      if (resubmitRef.current) {
+        resubmitRef.current = false;
+        inputRef.current?.form?.requestSubmit();
+      }
+    }
   };
 
   return (
@@ -33,9 +99,22 @@ export default function FileInput({
         {label}
       </button>
 
-      {fileName ? (
+      {status.kind === "empty" && (
+        <span className="text-sm text-muted-foreground">Brak zdjęcia</span>
+      )}
+
+      {status.kind === "working" && (
+        <span className="text-sm text-muted-foreground">Kompresuję zdjęcie…</span>
+      )}
+
+      {status.kind === "ready" && (
         <span className="flex min-w-0 items-center gap-1 text-sm text-muted-foreground">
-          <span className="truncate">{fileName}</span>
+          <span className="truncate">{status.name}</span>
+          <span className="shrink-0 text-xs">
+            {status.after < status.before
+              ? `(${formatBytes(status.before)} → ${formatBytes(status.after)})`
+              : `(${formatBytes(status.after)})`}
+          </span>
           <button
             type="button"
             onClick={clear}
@@ -45,8 +124,6 @@ export default function FileInput({
             <X size={14} />
           </button>
         </span>
-      ) : (
-        <span className="text-sm text-muted-foreground">Brak zdjęcia</span>
       )}
 
       <input
@@ -55,7 +132,7 @@ export default function FileInput({
         name={name}
         accept={accept}
         hidden
-        onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)}
+        onChange={handleChange}
       />
     </div>
   );
