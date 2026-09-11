@@ -295,3 +295,89 @@ export async function updateLocation(formData: FormData) {
   revalidatePath("/map");
   redirect(`/locations/${locationId}`);
 }
+
+/**
+ * Usuwa pojedynczy zbiornik z warstwy wód. Tylko dla adminów - uprawnienia
+ * sprawdza sama funkcja w bazie, więc nie da się tego obejść z pominięciem
+ * interfejsu.
+ *
+ * Czyszczenie hurtowe zostało świadomie odrzucone: rozlewiska i starorzecza
+ * są w OSM nie do odróżnienia bez tagów, których nie mamy w bazie, a kasowanie
+ * obiektów bez nazwy wycięłoby połowę warstwy razem z łowiskami.
+ */
+export async function deleteWaterBody(
+  formData: FormData,
+): Promise<{ ok: boolean; message: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: false, message: "Musisz być zalogowany" };
+  }
+
+  const waterBodyId = formData.get("water_body_id") as string;
+
+  const { data, error } = await supabase.rpc("delete_water_body", {
+    target_id: waterBodyId,
+  });
+
+  if (error) {
+    return { ok: false, message: error.message };
+  }
+
+  const result = data as { name: string; detached: number };
+
+  revalidatePath("/map");
+  revalidatePath("/locations/[id]", "page");
+
+  return {
+    ok: true,
+    message:
+      result.detached > 0
+        ? `Usunięto „${result.name}". Odpięto miejscówki: ${result.detached}.`
+        : `Usunięto „${result.name}".`,
+  };
+}
+
+/**
+ * Zmienia nazwę zbiornika. Tylko dla adminów - jak przy usuwaniu, uprawnienia
+ * pilnuje funkcja w bazie.
+ *
+ * Poprawiona nazwa dostaje name_source = 'manual', więc nie nadpisze jej ani
+ * automatyczne nazywanie z sąsiedztwa, ani kolejny import ze zrzutu OSM.
+ */
+export async function renameWaterBody(
+  formData: FormData,
+): Promise<{ ok: boolean; message: string; name?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: false, message: "Musisz być zalogowany" };
+  }
+
+  const waterBodyId = formData.get("water_body_id") as string;
+  const newName = ((formData.get("name") as string) ?? "").trim();
+
+  if (!newName) {
+    return { ok: false, message: "Nazwa nie może być pusta" };
+  }
+
+  const { data, error } = await supabase.rpc("rename_water_body", {
+    target_id: waterBodyId,
+    new_name: newName,
+  });
+
+  if (error) {
+    return { ok: false, message: error.message };
+  }
+
+  const result = data as { name: string };
+
+  revalidatePath("/map");
+  revalidatePath("/locations/[id]", "page");
+
+  return { ok: true, message: `Zmieniono nazwę na „${result.name}".`, name: result.name };
+}

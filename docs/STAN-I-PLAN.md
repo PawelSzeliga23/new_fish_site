@@ -1,7 +1,7 @@
 # Stan projektu i dalsze kroki
 
 Plik do przeczytania na starcie sesji. Szczegółowy przebieg prac jest
-w `docs/2026-09-08-sesja.md`.
+w `docs/2026-09-08-sesja.md` i `docs/2026-09-11-sesja.md`.
 
 ---
 
@@ -35,6 +35,16 @@ najlepszego okna.
 
 `src/lib/hydro.ts` — najbliższy posterunek IMGW (913 stacji, dobór po odległości)
 plus modelowany przepływ z Open-Meteo Flood API.
+
+### Ręczna korekta warstwy wód
+
+Admin (lista w `admin_emails`, po mailu) może z dymka na mapie zmienić nazwę
+zbiornika albo go usunąć. Uprawnień pilnują `delete_water_body`
+i `rename_water_body` w bazie, więc nie da się ich obejść z pominięciem
+interfejsu.
+
+Czyszczenie hurtowe zostało **świadomie odrzucone** — powód w sekcji
+„Świadome kompromisy".
 
 ### Strony
 
@@ -106,6 +116,17 @@ Leaflet ustawia kolory jako atrybuty (`fill="none"` na liniach). Reguła CSS je
 nadpisuje — stąd rzeki wypełnione jak wielokąty. Klasa `.water-body-area`
 (wypełnienie) trafia wyłącznie na `Polygon`/`MultiPolygon`.
 
+### Sprawdź, czy migracja naprawdę weszła
+
+Brak błędu przy aplikowaniu nie znaczy, że obiekty są w bazie. Cała funkcja
+administracyjna wyglądała na zepsuty interfejs, bo `is_admin` nie istniało,
+a front cicho degradował błąd RPC do „nie jesteś adminem". Po każdej migracji:
+
+```sql
+select proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public' and proname in ('...');
+```
+
 ### `.next` w OneDrive
 
 Katalog jest synchronizowany i dehydratowany do postaci „tylko w chmurze", przez
@@ -121,6 +142,13 @@ podstawić junction pod `.next`.
   wyrabiać się w limicie czasu. Kompromis: bezimienny staw poniżej 0,5 ha
   (mniej niż ~70×70 m) nie jest w bazie, więc reguła 50 m nie pozwoli tam
   postawić miejscówki. Nazwane wody są zachowane niezależnie od wielkości.
+- **Żadnego czyszczenia hurtowego warstwy wód.** Brak nazwy nigdy nie jest
+  kryterium usunięcia: bezimienne starorzecza i rozlewiska przy rzekach to jedne
+  z lepszych łowisk, a bez nazwy jest **połowa warstwy** (51 893 ze 103 336),
+  w tym 6532 jeziora o średniej 18 ha. Bagno (`natural=wetland`) od starorzecza
+  (`water=oxbow`) odróżnia wyłącznie tag z OSM, którego nie mamy w bazie — więc
+  dopóki nie zapisujemy `fclass`, jedyną bezpieczną drogą jest ręczne usuwanie
+  pojedynczych obiektów przez admina.
 - **Heurystyka brań nie jest skalibrowana na danych.** Wagi pochodzą z wiedzy
   wędkarskiej. `catch_reports.conditions_snapshot` to zalążek pętli
   kalibracyjnej, ale potrzeba setek rekordów.
@@ -135,6 +163,15 @@ podstawić junction pod `.next`.
 ## Do zrobienia
 
 ### Bliskie i konkretne
+
+- [ ] **Filtr mokradeł przecieka.** `SKIPPED_CLASSES` w importerze pomija
+      `wetland`, a mimo to w bazie siedzą bagna Biebrzy jako „jeziora"
+      (`Bagno Ławki` 3045 ha, rozlewisko podpisane „kanał Rudzki" 5892 ha — oba
+      w OSM to `natural=wetland`). Przyczyna nieustalona; wymaga zajrzenia do
+      DBF ze zrzutu Geofabrika.
+- [ ] **Zapisywać `fclass` przy imporcie.** Dziś trzymamy tylko zmapowany
+      `type`, więc pole odróżniające bagno od jeziora przepada i nie da się
+      odsiać rozlewisk inaczej niż ręcznie.
 
 - [ ] **Trzy błędy ESLint w plikach nietkniętych tej sesji**: `src/app/page.tsx`
       i `src/components/Sidebar.tsx` używają `<a>` zamiast `<Link>`,
@@ -198,6 +235,8 @@ Tej sesji dotyczą `019`–`038`:
 | 035–036 | warstwa mapowa `water_bodies_map` |
 | 037 | `security definer` dla reguły 50 m |
 | 038 | lista miejscówek z akwenem i liczbą połowów |
+| 039 | admini, usuwanie zbiornika, brakujący trigger DELETE warstwy mapowej |
+| 040 | zmiana nazwy zbiornika, ochrona nazwy ręcznej przed importem |
 
 Wszystkie są **już zaaplikowane** na zdalnym projekcie przez MCP. Migracja 029
 została w repozytorium dla historii, ale jej efekt nadpisuje 036 — świeża baza

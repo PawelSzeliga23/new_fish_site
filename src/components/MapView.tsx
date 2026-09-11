@@ -14,8 +14,9 @@ import {
 } from "react-leaflet";
 import type { GeoJsonObject } from "geojson";
 import { createClient } from "@/lib/supabase/client";
-import { addLocation, importWaterBodiesAt } from "@/app/map/actions";
+import { addLocation, importWaterBodiesAt, deleteWaterBody } from "@/app/map/actions";
 import LocationPopup from "./LocationPopup";
+import WaterBodyPopup from "./WaterBodyPopup";
 import { input, btnPrimary, btnSecondary } from "@/lib/ui";
 import FileInput from "./FileInput";
 
@@ -332,7 +333,13 @@ function LocateButton({
   );
 }
 
-export default function MapView({ locations }: { locations: LocationPoint[] }) {
+export default function MapView({
+  locations,
+  isAdmin,
+}: {
+  locations: LocationPoint[];
+  isAdmin: boolean;
+}) {
   const [pending, setPending] = useState<{ lat: number; lng: number } | null>(
     null,
   );
@@ -340,6 +347,8 @@ export default function MapView({ locations }: { locations: LocationPoint[] }) {
   const [waterStatus, setWaterStatus] = useState<WaterStatus>({ kind: "zoomOut" });
   const [nearWater, setNearWater] = useState<NearWater>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [toDelete, setToDelete] = useState<WaterBodyShape | null>(null);
+  const [deleteResult, setDeleteResult] = useState<string | null>(null);
 
   // Regułę "najwyżej 50 m od wody" wymusza add_location, ale użytkownik powinien
   // wiedzieć o niej przed wypełnieniem formularza, a nie dostać błąd po zapisie.
@@ -393,6 +402,15 @@ export default function MapView({ locations }: { locations: LocationPoint[] }) {
     setWaterBodies(bodies);
   }, []);
 
+  // Podmiana w stanie zamiast przeładowania kadru: WaterBodyLoader pyta bazę
+  // dopiero przy zmianie widoku, więc bez tego poprawiona nazwa pokazałaby się
+  // dopiero po przesunięciu mapy.
+  const handleRenamed = useCallback((id: string, name: string) => {
+    setWaterBodies((bodies) =>
+      bodies.map((body) => (body.id === id ? { ...body, name } : body)),
+    );
+  }, []);
+
   const handleWaterStatus = useCallback((status: WaterStatus) => {
     setWaterStatus(status);
   }, []);
@@ -435,16 +453,13 @@ export default function MapView({ locations }: { locations: LocationPoint[] }) {
             data={body.geojson}
             style={waterBodyStyle(body.geojson)}
           >
-            <Popup>
-              <span className="water-body-popup block">
-                <span className="font-semibold">{body.name}</span>
-                {body.area_ha !== null && (
-                  <span className="text-xs text-muted-foreground">
-                    {" "}
-                    · {Math.round(body.area_ha)} ha
-                  </span>
-                )}
-              </span>
+            <Popup minWidth={200}>
+              <WaterBodyPopup
+                body={body}
+                isAdmin={isAdmin}
+                onRenamed={handleRenamed}
+                onRequestDelete={setToDelete}
+              />
             </Popup>
           </GeoJSON>
         ))}
@@ -552,6 +567,117 @@ export default function MapView({ locations }: { locations: LocationPoint[] }) {
           </form>
         </div>
       )}
+
+      {/* Własny modal zamiast window.confirm: natywne okno blokuje wątek
+          przeglądarki i nie zmieści opisu skutków, a tu trzeba pokazać, co
+          konkretnie znika i ile miejscówek straci przypisany akwen. */}
+      {toDelete && (
+        <ConfirmDeleteWaterBody
+          body={toDelete}
+          onCancel={() => setToDelete(null)}
+          onDeleted={(message) => {
+            setWaterBodies((bodies) =>
+              bodies.filter((b) => b.id !== toDelete.id),
+            );
+            setToDelete(null);
+            setDeleteResult(message);
+          }}
+        />
+      )}
+
+      {deleteResult && (
+        <div className="absolute bottom-4 left-1/2 z-[1200] flex -translate-x-1/2 items-center gap-3 rounded-full border border-border bg-card px-4 py-2 text-sm text-card-foreground shadow-lg">
+          {deleteResult}
+          <button
+            type="button"
+            onClick={() => setDeleteResult(null)}
+            className="text-xs font-semibold text-muted-foreground hover:text-card-foreground"
+          >
+            Zamknij
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Potwierdzenie usunięcia zbiornika.
+ *
+ * Usunięcie jest nieodwracalne - obiekt wraca do bazy dopiero przy kolejnym
+ * imporcie z OSM - więc okno wymienia nazwę, rodzaj i powierzchnię, żeby dało
+ * się wychwycić kliknięcie w zły obrys przed zatwierdzeniem.
+ */
+function ConfirmDeleteWaterBody({
+  body,
+  onCancel,
+  onDeleted,
+}: {
+  body: WaterBodyShape;
+  onCancel: () => void;
+  onDeleted: (message: string) => void;
+}) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleDelete = async () => {
+    setPending(true);
+    setError(null);
+
+    const formData = new FormData();
+    formData.set("water_body_id", body.id);
+
+    const result = await deleteWaterBody(formData);
+
+    if (result.ok) {
+      onDeleted(result.message);
+    } else {
+      setError(result.message);
+      setPending(false);
+    }
+  };
+
+  return (
+    <div className="absolute inset-0 z-[1100] flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-xl">
+        <h2 className="text-base font-semibold">Usunąć ten zbiornik?</h2>
+
+        <p className="mt-3 text-sm">
+          <span className="font-semibold">{body.name}</span>
+          <span className="text-muted-foreground">
+            {" "}
+            · {body.type}
+            {body.area_ha !== null && ` · ${Math.round(body.area_ha)} ha`}
+          </span>
+        </p>
+
+        <p className="mt-3 text-xs text-muted-foreground">
+          Zniknie z mapy dla wszystkich. Miejscówki, które miały go przypisany,
+          zostaną, ale stracą akwen. Nie da się tego cofnąć inaczej niż
+          ponownym importem z OpenStreetMap.
+        </p>
+
+        {error && <p className="mt-3 text-xs text-red-500">⚠ {error}</p>}
+
+        <div className="mt-4 flex gap-2">
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={pending}
+            className="flex-1 rounded-full bg-red-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {pending ? "Usuwam..." : "Usuń"}
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={pending}
+            className={btnSecondary}
+          >
+            Anuluj
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

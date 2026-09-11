@@ -96,11 +96,15 @@ export default async function MapPage() {
     throw new Error(error.message);
   }
 
+  // Flaga steruje wyłącznie tym, czy przycisk jest widoczny. Prawdziwą kontrolę
+  // trzyma delete_water_body w bazie - ukrycie guzika niczego samo nie chroni.
+  const { data: isAdmin } = await supabase.rpc("is_admin");
+
   // Zbiorników nie ładujemy tutaj: po imporcie ze zrzutów OSM jest ich w bazie
   // sto tysięcy, więc mapa dociąga je sama dla aktualnego kadru.
   const locations = await Promise.all(
     ((data as LocationRow[]) ?? []).map(withConditions),
   );
 
-  return <MapLoader locations={locations} />;
+  return <MapLoader locations={locations} isAdmin={isAdmin === true} />;
 }
