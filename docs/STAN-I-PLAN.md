@@ -46,6 +46,20 @@ interfejsu.
 Czyszczenie hurtowe zostało **świadomie odrzucone** — powód w sekcji
 „Świadome kompromisy".
 
+### Rejestracja i konta
+
+Formularz na `/login` zbiera imię, nazwisko, nazwę użytkownika (z generatorem
+i sprawdzaniem dostępności na żywo), datę urodzenia, płeć, email i zgodę na
+regulamin. Dane jadą przez `raw_user_meta_data`, a do profilu przepisuje je
+trigger `handle_new_user`, więc konto i profil powstają w jednej transakcji.
+
+W bazie jest **data urodzenia, nie wiek** — wiek z daty jest zawsze aktualny,
+a zapisana raz liczba po roku kłamie. Minimalny wiek to 13 lat.
+
+Dokumenty: `/regulamin` i `/prywatnosc`, obie publiczne. Serwis używa wyłącznie
+plików cookie niezbędnych do działania, więc `CookieNotice` jest informacją,
+a nie oknem zgody.
+
 ### Strony
 
 | ścieżka | zawartość |
@@ -237,6 +251,7 @@ Tej sesji dotyczą `019`–`038`:
 | 038 | lista miejscówek z akwenem i liczbą połowów |
 | 039 | admini, usuwanie zbiornika, brakujący trigger DELETE warstwy mapowej |
 | 040 | zmiana nazwy zbiornika, ochrona nazwy ręcznej przed importem |
+| 041 | dane z rejestracji w profilu, unikalność nazwy bez wielkości liter |
 
 Wszystkie są **już zaaplikowane** na zdalnym projekcie przez MCP. Migracja 029
 została w repozytorium dla historii, ale jej efekt nadpisuje 036 — świeża baza
