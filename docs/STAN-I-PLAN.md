@@ -178,6 +178,12 @@ podstawić junction pod `.next`.
 
 ### Bliskie i konkretne
 
+- [ ] **Dane administratora danych w polityce prywatności.** `/prywatnosc`,
+      sekcja 1, ma wyróżniony placeholder zamiast nazwy podmiotu i adresu
+      kontaktowego. RODO wymaga jednego i drugiego, więc to **blokuje publiczny
+      start** — dopóki serwis jest w rękach autora, nie przeszkadza. Trzeba też
+      wtedy sprawdzić, czy lista podmiotów przetwarzających w sekcji 5
+      (Supabase, Vercel, Open-Meteo, IMGW, OpenStreetMap) jest nadal pełna.
 - [ ] **Filtr mokradeł przecieka.** `SKIPPED_CLASSES` w importerze pomija
       `wetland`, a mimo to w bazie siedzą bagna Biebrzy jako „jeziora"
       (`Bagno Ławki` 3045 ha, rozlewisko podpisane „kanał Rudzki" 5892 ha — oba
